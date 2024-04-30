@@ -17,7 +17,7 @@
 #define ETHERTYPE_IP 0x0800
 #define byte uint8_t
 
-
+byte attacker[4];
 
 typedef struct arp_packet {
     struct libnet_ethernet_hdr eth_hdr;
@@ -32,6 +32,18 @@ struct arp_pair {
     char sender[16];
     char target[16];
 };
+
+char * getIfToIP(char *ifName){
+    int fd;
+    struct ifreq ifr;
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, ifName, IFNAMSIZ-1);
+    ioctl(fd, SIOCGIFADDR, &ifr);
+    close(fd);
+    return inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+}
+
 void print_mac_address(const byte *mac) {
     for (int i = 0; i < ETHER_ADDR_LEN; i++) {
         printf("%02x", mac[i]);
@@ -169,7 +181,7 @@ void get_sender_mac(int cnt, char **argv, const char *dev,byte *sender_mac) {
     inet_pton(AF_INET, argv[2 * cnt], src_ip);
     inet_pton(AF_INET, argv[2 * cnt + 1], dst_ip);
 
-    request_broad(pack, src_mac, dst_ip, src_ip); //(pack, attacker_mac, target_ip, sender_ip)
+    request_broad(pack, src_mac, attacker, src_ip); //(pack, attacker_mac, attacker_ip, sender_ip)
     pcap = pcap_open_live(dev, BUFSIZ, 1, 1, errbuf);
     if (pcap == NULL) {
         fprintf(stderr, "pcap_open_live error\n");
@@ -228,7 +240,9 @@ int main(int argc, char **argv) {
         exit(1);
     }
     
-    
+    byte * x = getIfToIP(argv[1]);
+    inet_pton(AF_INET,x,attacker);
+    printBuffer(attacker,4);
     
 
     const char *dev = argv[1];
